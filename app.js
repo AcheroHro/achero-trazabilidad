@@ -902,8 +902,8 @@
     // --- MAIN LIST RENDER ---
     function renderMainList() {
       const areas = [...new Set(JUNTAS.map(j => j.area))].sort();
-      const totalAll = JUNTAS.reduce((s,j) => s + parseFloat(j.diam), 0);
-      const pendingSum = JUNTAS.filter(j => j.fecha === '—').reduce((s,j) => s + parseFloat(j.diam), 0);
+      const totalAll = JUNTAS.reduce((s,j) => s + (parseFloat(j.diam) || 0), 0);
+      const pendingSum = JUNTAS.filter(j => j.fecha === '—' || !j.fecha).reduce((s,j) => s + (parseFloat(j.diam) || 0), 0);
       
       const stat1 = document.querySelector('.stat-card:nth-child(1) .stat-value');
       const stat2 = document.querySelector('.stat-card:nth-child(2) .stat-value');
@@ -925,7 +925,7 @@
         </div>`;
       areas.forEach((area, i) => {
         const juntas = JUNTAS.filter(j => j.area === area);
-        const total  = juntas.reduce((s,j) => s + parseFloat(j.diam), 0);
+        const total  = juntas.reduce((s,j) => s + (parseFloat(j.diam) || 0), 0);
         const delay  = (i * 0.04).toFixed(2);
         html += `
         <div class="area-row" style="animation-delay:${delay}s" onclick="openDetail('${area}')">
