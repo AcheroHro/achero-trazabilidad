@@ -7,6 +7,20 @@
       });
     }
 
+    // Global Error Handler for mobile debugging
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      const message = [
+        'Message: ' + msg,
+        'URL: ' + url,
+        'Line: ' + lineNo,
+        'Column: ' + columnNo,
+        'Error object: ' + JSON.stringify(error)
+      ].join(' - ');
+      console.error("🚫 App Error:", message);
+      // We don't use showToast here yet because it might not be ready
+      return false;
+    };
+
     // --- DATA ---
     const API_URL = "https://script.google.com/macros/s/AKfycbzTJv7PtUMErp2ixO7BnwgXFyxwsLHwi4Y5Iv-5PdQeF0RBfMMx6w0zl8BFZ1V_q5YB/exec";
     
@@ -510,11 +524,20 @@
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            video: { 
+              facingMode: { exact: 'environment' }, 
+              width: { ideal: 1280 }, 
+              height: { ideal: 720 },
+              focusMode: 'continuous' // Attempt continuous focus
+            }
           });
         } catch {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+            video: { 
+              facingMode: 'environment', 
+              width: { ideal: 640 }, 
+              height: { ideal: 480 } 
+            }
           });
         }
         cameraStream = stream;
@@ -562,28 +585,50 @@
   
     function startScanLoop() {
       if (!window.jsQR) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
-        script.onload = () => { scanInterval = setInterval(scanFrame, 300); };
-        script.onerror = () => { document.getElementById('scanStatus').textContent = 'Usá el campo manual ↓'; };
-        document.head.appendChild(script);
-      } else {
-        scanInterval = setInterval(scanFrame, 300);
+        console.error("❌ jsQR not found in window");
+        document.getElementById('scanStatus').textContent = '⚠️ Error: No se pudo cargar el lector'; 
+        showToast('❌ El lector QR no está listo');
+        return;
       }
+      
+      console.log("✅ jsQR available. Starting loop.");
+      if (scanInterval) clearInterval(scanInterval);
+      scanInterval = setInterval(scanFrame, 300);
     }
   
     function scanFrame() {
       const video  = document.getElementById('qrVideo');
       const canvas = document.getElementById('qrScanCanvas');
       const status = document.getElementById('scanStatus');
+      
       if (!video.readyState || video.readyState < 2) return;
-      canvas.width  = video.videoWidth  || 640;
-      canvas.height = video.videoHeight || 640;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-      if (code) {
+      if (!window.jsQR) return;
+
+      // Pulse 'Searching' text to show activity
+      const dots = (Math.floor(Date.now() / 500) % 4);
+      status.textContent = 'Buscando código QR' + '.'.repeat(dots);
+
+      // Scale down image for significantly faster processing
+      const maxDim = 512;
+      let w = video.videoWidth;
+      let h = video.videoHeight;
+      if (w > maxDim || h > maxDim) {
+        const ratio = Math.min(maxDim / w, maxDim / h);
+        w = Math.floor(w * ratio);
+        h = Math.floor(h * ratio);
+      }
+
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.imageSmoothingEnabled = false; // Sharper edges for QR
+      ctx.drawImage(video, 0, 0, w, h);
+      
+      const imageData = ctx.getImageData(0, 0, w, h);
+      // 'attemptBoth' is more robust for different lighting/contrast
+      const code = window.jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+      
+      if (code && code.data) {
         status.textContent = '✅ QR detectado!';
         status.style.color = '#66BB6A';
         clearInterval(scanInterval);
@@ -593,29 +638,50 @@
     }
   
     function handleScannedCode(data) {
+      console.log("🔍 Escaneado:", data);
       const idMatch   = data.match(/JUNTA:([^|]+)/);
       const areaMatch = data.match(/AREA:([^|]+)/);
-      const id = idMatch ? idMatch[1] : data.trim();
-      const found = JUNTAS.find(j => j.id.toLowerCase() === id.toLowerCase() || (areaMatch && j.area === areaMatch[1] && data.includes(`SPOOL:${j.spool}`) && data.includes(`N:${j.junta}`)));
+      const idStr = idMatch ? idMatch[1].trim().toLowerCase() : data.trim().toLowerCase();
+      
+      // Try to find by ID, or fallback to matching components if the full QR format is present
+      const found = JUNTAS.find(j => 
+        j.id.toLowerCase() === idStr || 
+        (areaMatch && j.area === areaMatch[1] && data.includes(`SPOOL:${j.spool}`) && data.includes(`N:${j.junta}`)) ||
+        // Extreme fallback: check if any ID is contained in the string
+        data.toLowerCase().includes(j.id.toLowerCase())
+      );
+
       const resultEl = document.getElementById('qrScanResult');
       resultEl.style.display = 'block';
+
       if (found) {
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        console.log("🎯 QR Match:", found.id);
+        
         resultEl.style.background = '#E8F5E9';
         resultEl.style.borderColor = '#A5D6A7';
         resultEl.style.color = '#2E7D32';
         resultEl.innerHTML = `✅ Junta encontrada: <b>${found.id}</b><br>
-          Área ${found.area} · L° ${found.linea} · Spool ${found.spool} · Junta ${found.junta}<br><br>
-          <span onclick="closeQRScanner();openDetail('${found.area}');setTimeout(()=>openEdit('${found.id}'),400)"
-            style="display:inline-block;margin-top:4px;background:#2E7D32;color:#fff;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-family:'IBM Plex Sans',sans-serif;">
-            → Abrir junta
-          </span>`;
+          Área ${found.area} · L° ${found.linea}<br>
+          <small>Redirigiendo...</small>`;
+        
+        // Auto-open after a small delay to show success
+        setTimeout(() => {
+          closeQRScanner();
+          // Clear result for next time
+          resultEl.style.display = 'none';
+          resultEl.innerHTML = '';
+          openDetail(found.area);
+          setTimeout(() => openEdit(found.id), 400);
+        }, 800);
       } else {
-        resultEl.style.background = '#FFEBEE';
-        resultEl.style.borderColor = '#FFCDD2';
-        resultEl.style.color = '#C62828';
-        resultEl.innerHTML = `❌ QR no reconocido.<br><small style="opacity:.7">${data.substring(0,60)}...</small><br><br>
-          <span onclick="if(scanInterval===null){startScanLoop();document.getElementById('scanStatus').textContent='Buscando código QR...';document.getElementById('scanStatus').style.color='#42A5F5';this.closest('#qrScanResult').style.display='none'}"
+        if (navigator.vibrate) navigator.vibrate(200);
+        resultEl.style.background = '#FFF3E0';
+        resultEl.style.borderColor = '#FFE0B2';
+        resultEl.style.color = '#E65100';
+        resultEl.innerHTML = `⚠️ Código detectado pero no coincide:<br>
+          <small style="opacity:.7; word-break: break-all;">${data.substring(0,80)}${data.length > 80 ? '...' : ''}</small><br><br>
+          <span onclick="if(scanInterval===null){startScanLoop();this.closest('#qrScanResult').style.display='none'}"
             style="display:inline-block;background:var(--blue-main);color:#fff;padding:5px 14px;border-radius:6px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12px">
             Reintentar
           </span>`;
@@ -839,9 +905,13 @@
       const totalAll = JUNTAS.reduce((s,j) => s + parseFloat(j.diam), 0);
       const pendingSum = JUNTAS.filter(j => j.fecha === '—').reduce((s,j) => s + parseFloat(j.diam), 0);
       
-      document.querySelector('.stat-card:nth-child(1) .stat-value').textContent = areas.length;
-      document.querySelector('.stat-card:nth-child(2) .stat-value').textContent = totalAll >= 1000 ? (totalAll/1000).toFixed(1)+'K' : totalAll.toFixed(2);
-      document.querySelector('.stat-card:nth-child(3) .stat-value').textContent = pendingSum >= 1000 ? (pendingSum/1000).toFixed(1)+'K' : pendingSum.toFixed(2);
+      const stat1 = document.querySelector('.stat-card:nth-child(1) .stat-value');
+      const stat2 = document.querySelector('.stat-card:nth-child(2) .stat-value');
+      const stat3 = document.querySelector('.stat-card:nth-child(3) .stat-value');
+
+      if (stat1) stat1.textContent = areas.length;
+      if (stat2) stat2.textContent = totalAll >= 1000 ? (totalAll/1000).toFixed(1)+'K' : totalAll.toFixed(2);
+      if (stat3) stat3.textContent = pendingSum >= 1000 ? (pendingSum/1000).toFixed(1)+'K' : pendingSum.toFixed(2);
       let html = `
         <div class="todo-row" onclick="openDetail('TODO')">
           <div>
@@ -911,21 +981,32 @@
       t._timer = setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(10px)'; }, 2800);
     }
   
-    initFilterChips();
-    document.getElementById('btnLimpiar').addEventListener('click', clearFilters);
-    initData();
-  
-    let searchField = 'area';
-    document.getElementById('mainSearchInput').addEventListener('input', function() {
-      const v = this.value.trim().toLowerCase();
-      document.querySelectorAll('#mainList .area-row').forEach(function(row) {
-        const code = row.querySelector('.area-code').textContent.toLowerCase();
-        row.style.display = (!v || code.includes(v)) ? '' : 'none';
-      });
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("✅ DOM ready. Initializing...");
+      try {
+        initFilterChips();
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        if (btnLimpiar) btnLimpiar.addEventListener('click', clearFilters);
+        initData();
+      } catch (err) {
+        console.error("❌ Initialization failed:", err);
+      }
     });
 
+    // --- MAIN LIST FILTRADO ---
+    const mainSearch = document.getElementById('mainSearchInput');
+    if (mainSearch) {
+      mainSearch.addEventListener('input', function() {
+        const v = this.value.trim().toLowerCase();
+        document.querySelectorAll('#mainList .area-row').forEach(function(row) {
+          const code = row.querySelector('.area-code').textContent.toLowerCase();
+          row.style.display = (!v || code.includes(v)) ? '' : 'none';
+        });
+      });
+    }
+
     // --- EXPOSE TO GLOBAL SCOPE ---
-    // This ensures that onclick handlers in HTML can find the functions
     window.openDetail = openDetail;
     window.closeDetail = closeDetail;
     window.openEdit = openEdit;
