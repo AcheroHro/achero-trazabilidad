@@ -8,26 +8,38 @@
     }
 
     // Global Error Handler for mobile debugging
+    let tapCount = 0;
     function debugLog(msg, isError = false) {
       console.log(msg);
       const dbg = document.getElementById('debugContent');
+      const consoleEl = document.getElementById('debugConsole');
       if (dbg) {
         const line = document.createElement('div');
         line.style.color = isError ? '#ff4444' : '#00ff00';
+        line.style.borderBottom = '1px solid rgba(0,255,0,0.1)';
+        line.style.padding = '2px 0';
         line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
         dbg.appendChild(line);
-        // If error, show the console
-        if (isError) document.getElementById('debugConsole').style.display = 'block';
+        if (isError && consoleEl) consoleEl.style.display = 'block';
       }
     }
 
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      const message = `ERR: ${msg} (Line: ${lineNo})`;
-      debugLog(message, true);
+      debugLog(`ERR: ${msg} (L:${lineNo})`, true);
       return false;
     };
 
-    debugLog("🚀 Script app.js cargado v1.3");
+    // Secret trigger: Tap title 5 times to show console
+    window.handleDebugTap = function() {
+      tapCount++;
+      if (tapCount >= 5) {
+        const ce = document.getElementById('debugConsole');
+        if (ce) ce.style.display = (ce.style.display === 'none' ? 'block' : 'none');
+        tapCount = 0;
+      }
+    };
+
+    debugLog("🚀 Script v1.3.2 ready");
 
     // --- DATA ---
     const API_URL = "https://script.google.com/macros/s/AKfycbzTJv7PtUMErp2ixO7BnwgXFyxwsLHwi4Y5Iv-5PdQeF0RBfMMx6w0zl8BFZ1V_q5YB/exec";
@@ -1008,19 +1020,24 @@
   
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
-      debugLog("🏠 DOM Listo. Inicializando UI...");
+      debugLog("🏠 DOM Ready. Start Init.");
       try {
+        // 1. Data first
+        loadFromLocalStorage();
+        debugLog(`📦 JUNTAS loaded: ${JUNTAS.length}`);
+
+        // 2. UI Components second
         initFilterChips();
         const btnLimpiar = document.getElementById('btnLimpiar');
         if (btnLimpiar) btnLimpiar.addEventListener('click', clearFilters);
         
-        // Force initial render even before data arrives
-        loadFromLocalStorage();
+        // 3. Initial Render
         renderMainList();
         
+        // 4. Remote Sync
         initData();
       } catch (err) {
-        debugLog("❌ Error en init: " + err.message, true);
+        debugLog("❌ Fatal Init: " + err.message, true);
       }
     });
 
