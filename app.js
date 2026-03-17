@@ -8,18 +8,26 @@
     }
 
     // Global Error Handler for mobile debugging
+    function debugLog(msg, isError = false) {
+      console.log(msg);
+      const dbg = document.getElementById('debugContent');
+      if (dbg) {
+        const line = document.createElement('div');
+        line.style.color = isError ? '#ff4444' : '#00ff00';
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        dbg.appendChild(line);
+        // If error, show the console
+        if (isError) document.getElementById('debugConsole').style.display = 'block';
+      }
+    }
+
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      const message = [
-        'Message: ' + msg,
-        'URL: ' + url,
-        'Line: ' + lineNo,
-        'Column: ' + columnNo,
-        'Error object: ' + JSON.stringify(error)
-      ].join(' - ');
-      console.error("🚫 App Error:", message);
-      // We don't use showToast here yet because it might not be ready
+      const message = `ERR: ${msg} (Line: ${lineNo})`;
+      debugLog(message, true);
       return false;
     };
+
+    debugLog("🚀 Script app.js cargado v1.3");
 
     // --- DATA ---
     const API_URL = "https://script.google.com/macros/s/AKfycbzTJv7PtUMErp2ixO7BnwgXFyxwsLHwi4Y5Iv-5PdQeF0RBfMMx6w0zl8BFZ1V_q5YB/exec";
@@ -52,18 +60,22 @@
 
     // Cargar datos (Sheets -> LocalStorage -> UI)
     async function initData() {
-      console.log("🚀 Iniciando initData...");
+      debugLog("🏁 Iniciando initData...");
       showToast('🔄 Conectando con Google Sheets...');
       
       try {
-        console.log("📡 Fetching API_URL:", API_URL);
+        debugLog("📡 Fetching API...");
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
-        const response = await fetch(API_URL, { signal: controller.signal });
+        const response = await fetch(API_URL, { 
+          signal: controller.signal,
+          mode: 'cors',
+          cache: 'no-store'
+        });
         clearTimeout(timeoutId);
 
-        console.log("📥 Response OK:", response.ok, "Status:", response.status);
+        debugLog(`📥 Status: ${response.status}`);
         
         if (!response.ok) {
           throw new Error(`Error en servidor: ${response.status} ${response.statusText}`);
@@ -150,6 +162,11 @@
         }
       } catch (e) {}
       return String(fecha).split(' ')[0];
+    }
+
+    function formatNum(n) {
+      if (isNaN(n)) return '0,00';
+      return parseFloat(n).toFixed(2).replace('.', ',');
     }
 
     function sanitizeJuntas(data) {
@@ -901,6 +918,7 @@
   
     // --- MAIN LIST RENDER ---
     function renderMainList() {
+      debugLog("🎨 Renderizando lista principal...");
       const areas = [...new Set(JUNTAS.map(j => j.area))].sort();
       const totalAll = JUNTAS.reduce((s,j) => s + (parseFloat(j.diam) || 0), 0);
       const pendingSum = JUNTAS.filter(j => j.fecha === '—' || !j.fecha).reduce((s,j) => s + (parseFloat(j.diam) || 0), 0);
@@ -910,16 +928,16 @@
       const stat3 = document.querySelector('.stat-card:nth-child(3) .stat-value');
 
       if (stat1) stat1.textContent = areas.length;
-      if (stat2) stat2.textContent = totalAll >= 1000 ? (totalAll/1000).toFixed(1)+'K' : totalAll.toFixed(2);
-      if (stat3) stat3.textContent = pendingSum >= 1000 ? (pendingSum/1000).toFixed(1)+'K' : pendingSum.toFixed(2);
+      if (stat2) stat2.textContent = totalAll >= 1000 ? (totalAll/1000).toFixed(1)+'K' : formatNum(totalAll);
+      if (stat3) stat3.textContent = pendingSum >= 1000 ? (pendingSum/1000).toFixed(1)+'K' : formatNum(pendingSum);
       let html = `
         <div class="todo-row" onclick="openDetail('TODO')">
           <div>
             <div class="todo-label">Todo</div>
-            <div class="todo-count">${areas.length} áreas · Total Pulgadas: ${totalAll.toLocaleString('es-AR',{minimumFractionDigits:2})}</div>
+            <div class="todo-count">${areas.length} áreas · Total Pulgadas: ${formatNum(totalAll)}</div>
           </div>
           <div class="todo-right">
-            <div class="todo-total">${totalAll.toLocaleString('es-AR',{minimumFractionDigits:2})}</div>
+            <div class="todo-total">${formatNum(totalAll)}</div>
             <svg style="width:16px;height:16px;stroke:rgba(255,255,255,0.4);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>`;
@@ -936,7 +954,7 @@
             </div>
             <div class="area-right">
               <div class="diam-badge">
-                <span class="diam-value">${total.toLocaleString('es-AR',{minimumFractionDigits:2})}</span>
+                <span class="diam-value">${formatNum(total)}</span>
                 <span class="diam-unit">pulgadas</span>
               </div>
               <svg class="chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
@@ -944,7 +962,14 @@
           </div>
         </div>`;
       });
-      document.getElementById('mainList').innerHTML = html;
+      debugLog(`✅ HTML generado (${areas.length} filas). Aplicando al DOM...`);
+      const mainList = document.getElementById('mainList');
+      if (mainList) {
+        mainList.innerHTML = html;
+        debugLog("✨ DOM actualizado con éxito.");
+      } else {
+        debugLog("❌ Error: No se encontró el elemento 'mainList'", true);
+      }
     }
   
     function refreshMain() {
@@ -983,14 +1008,19 @@
   
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
-      console.log("✅ DOM ready. Initializing...");
+      debugLog("🏠 DOM Listo. Inicializando UI...");
       try {
         initFilterChips();
         const btnLimpiar = document.getElementById('btnLimpiar');
         if (btnLimpiar) btnLimpiar.addEventListener('click', clearFilters);
+        
+        // Force initial render even before data arrives
+        loadFromLocalStorage();
+        renderMainList();
+        
         initData();
       } catch (err) {
-        console.error("❌ Initialization failed:", err);
+        debugLog("❌ Error en init: " + err.message, true);
       }
     });
 
