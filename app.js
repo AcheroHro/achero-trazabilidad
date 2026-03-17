@@ -59,7 +59,11 @@
       }
     };
 
-    debugLog("🚀 Script v1.3.2 ready");
+    if (window.jsQR) debugLog("📚 jsQR library detected");
+    else debugLog("⚠️ jsQR library NOT detected yet", true);
+
+    debugLog("🚀 Script v1.3.5 ready");
+    checkDiagnostics();
 
     // --- DATA ---
     const API_URL = "https://script.google.com/macros/s/AKfycbzTJv7PtUMErp2ixO7BnwgXFyxwsLHwi4Y5Iv-5PdQeF0RBfMMx6w0zl8BFZ1V_q5YB/exec";
