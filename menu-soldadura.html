@@ -1156,7 +1156,7 @@
     <div class="header-top">
       <div class="header-left">
         <div style="padding-left: 8px;">
-          <div class="app-subtitle" onclick="handleDebugTap()" style="cursor:help">SEGUIMIENTO DE SOLDADURA <span style="font-size:8px;opacity:0.5;margin-left:5px">v1.3.2</span></div>
+          <div class="app-subtitle" onclick="handleDebugTap()" style="cursor:help">SEGUIMIENTO DE SOLDADURA <span style="font-size:8px;opacity:0.5;margin-left:5px">v1.3.4</span></div>
         </div>
       </div>
       <div class="header-actions">
@@ -1749,12 +1749,16 @@
   </div>
 </div>
 
-<script src="app.js?v=1.3.3"></script>
+<script src="app.js?v=1.3.4"></script>
 
 <!-- Mobile Debug Overlay (Hidden by default, can be toggled via console or fatal error) -->
 <div id="debugConsole" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:#00ff00;font-family:monospace;font-size:10px;padding:10px;z-index:9999;overflow-y:auto;pointer-events:none;">
-  <div style="font-weight:bold;border-bottom:1px solid #00ff00;margin-bottom:5px;padding-bottom:5px;pointer-events:auto;" onclick="this.parentElement.style.display='none'">[DEBUG CONSOLE - CLICK TO CLOSE]</div>
-  <div id="debugContent"></div>
+  <div style="font-weight:bold;border-bottom:1px solid #00ff00;margin-bottom:8px;padding-bottom:5px;display:flex;justify-content:space-between;pointer-events:auto;">
+    <span onclick="this.parentElement.parentElement.style.display='none'">[X] CERRAR</span>
+    <span onclick="checkDiagnostics()" style="color:#42A5F5">DIAGNOSTICAR</span>
+    <span onclick="forceAppUpdate()" style="color:#FFB300">LIMPIAR Y ACTUALIZAR</span>
+  </div>
+  <div id="debugContent" style="pointer-events:auto;"></div>
 </div>
 
 </body>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'achero-trazabilidad-v1.3.3';
+const CACHE_NAME = 'achero-trazabilidad-v1.3.4';
 const ASSETS = [
   './menu-soldadura.html',
   './app.js',

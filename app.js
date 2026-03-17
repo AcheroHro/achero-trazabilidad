@@ -17,12 +17,32 @@
         const line = document.createElement('div');
         line.style.color = isError ? '#ff4444' : '#00ff00';
         line.style.borderBottom = '1px solid rgba(0,255,0,0.1)';
-        line.style.padding = '2px 0';
+        line.style.padding = '4px 0';
         line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
         dbg.appendChild(line);
         if (isError && consoleEl) consoleEl.style.display = 'block';
       }
     }
+
+    // Diagnostics & Force Update
+    window.checkDiagnostics = function() {
+      debugLog("🔍 Diagnosticando...");
+      debugLog(`Library jsQR: ${window.jsQR ? '✅ OK' : '❌ MISSING'}`);
+      if (window.jsQRError) debugLog("❌ Error detectado en descarga de jsQR", true);
+      debugLog(`User Agent: ${navigator.userAgent.substring(0, 50)}...`);
+    };
+
+    window.forceAppUpdate = async function() {
+      debugLog("🔄 Forzando actualización...");
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for(let r of regs) await r.unregister();
+        debugLog("✅ Service Worker eliminado");
+      }
+      localStorage.clear(); // Safe as we sync with Sheets
+      debugLog("✅ Caché local limpia. Recargando...");
+      setTimeout(() => window.location.reload(true), 500);
+    };
 
     window.onerror = function(msg, url, lineNo, columnNo, error) {
       debugLog(`ERR: ${msg} (L:${lineNo})`, true);
