@@ -38,23 +38,49 @@
 
     // Cargar datos (Sheets -> LocalStorage -> UI)
     async function initData() {
+      console.log("🚀 Iniciando initData...");
       showToast('🔄 Conectando con Google Sheets...');
+      
       try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error("Error en red");
+        console.log("📡 Fetching API_URL:", API_URL);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+        const response = await fetch(API_URL, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        console.log("📥 Response OK:", response.ok, "Status:", response.status);
+        
+        if (!response.ok) {
+          throw new Error(`Error en servidor: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
+        console.log("📊 Datos recibidos:", data ? data.length : 0, "registros");
+
         if (data && data.length > 0) {
           JUNTAS = sanitizeJuntas(data);
           saveToLocalStorage();
           showToast('✅ Datos sincronizados');
+        } else if (data && data.error === 'network_error') {
+          throw new Error("Error de red detectado por Service Worker");
         } else {
+          console.warn("⚠️ API retornó datos vacíos o no válidos");
           loadFromLocalStorage();
+          showToast('⚠️ No hay datos en la nube');
         }
       } catch (err) {
-        console.warn("Fallo carga desde Sheets:", err);
+        console.error("❌ Error fatal en initData:", err);
+        let msg = '⚠️ Modo Local (Sin conexión)';
+        
+        if (err.name === 'AbortError') msg = '⌛ Tiempo de espera agotado';
+        else if (err.message.includes('Failed to fetch')) msg = '🚫 Error de conexión (HTTPS/CORS?)';
+        else if (err.message.includes('NetworkError')) msg = '🌐 Error de red móvil';
+
         loadFromLocalStorage();
-        showToast('⚠️ Modo Local (Sin conexión)');
+        showToast(msg);
       }
+      
       renderMainList();
       initFilterChips();
     }

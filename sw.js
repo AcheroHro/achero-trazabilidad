@@ -15,6 +15,21 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+
+  // Bypass cache for Google Apps Script API
+  if (url.includes('script.google.com')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        // If fetch fails (offline), try to return a synthetic response or just let it fail
+        return new Response(JSON.stringify({ error: 'network_error' }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
