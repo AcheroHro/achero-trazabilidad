@@ -62,7 +62,7 @@
     if (window.jsQR) debugLog("📚 jsQR library detected");
     else debugLog("⚠️ jsQR library NOT detected yet", true);
 
-    debugLog("🚀 Script v1.3.5 ready");
+    debugLog("🚀 Script v1.3.6 ready");
     checkDiagnostics();
 
     // --- DATA ---
@@ -486,39 +486,17 @@
     // --- QR ---
     let currentQRData = null;
   
-    function generateQRMatrix(text) {
-      const size = 21;
-      const matrix = Array.from({length: size}, () => Array(size).fill(0));
-      [[0,0],[0,14],[14,0]].forEach(([r,c]) => {
-        for (let i=0;i<7;i++) for (let j=0;j<7;j++) {
-          matrix[r+i][c+j] = (i===0||i===6||j===0||j===6||(i>=2&&i<=4&&j>=2&&j<=4)) ? 1 : 0;
-        }
-      });
-      let hash = 0;
-      for (let i=0;i<text.length;i++) hash = ((hash<<5)-hash)+text.charCodeAt(i), hash|=0;
-      let seed = Math.abs(hash);
-      for (let r=0;r<size;r++) for (let c=0;c<size;c++) {
-        if ((r<8&&c<8)||(r<8&&c>12)||(r>12&&c<8)) continue;
-        seed = (seed*1664525+1013904223)&0xffffffff;
-        matrix[r][c] = (seed>>>16)&1;
-      }
-      for (let i=8;i<13;i++) { matrix[6][i]=i%2===0?1:0; matrix[i][6]=i%2===0?1:0; }
-      return matrix;
-    }
-  
     function drawQR(canvas, text, cellSize=9) {
-      const matrix = generateQRMatrix(text);
-      const size = matrix.length;
-      canvas.width  = size * cellSize + 16;
-      canvas.height = size * cellSize + 16;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle = '#0a1628';
-      const pad = 8;
-      matrix.forEach((row,r) => row.forEach((cell,c) => {
-        if (cell) ctx.fillRect(c*cellSize+pad, r*cellSize+pad, cellSize-1, cellSize-1);
-      }));
+      if (!window.QRious) {
+        console.error("QRious not found");
+        return;
+      }
+      new QRious({
+        element: canvas,
+        value: text,
+        size: 250,
+        level: 'M'
+      });
     }
   
     function openQR() {

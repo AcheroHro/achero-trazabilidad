@@ -1,10 +1,11 @@
-const CACHE_NAME = 'achero-trazabilidad-v1.3.5';
+const CACHE_NAME = 'achero-trazabilidad-v1.3.6';
 const ASSETS = [
   './menu-soldadura.html',
   './app.js',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap',
-  './jsQR.min.js'
+  './jsQR.min.js',
+  './qrious.min.js'
 ];
 
 self.addEventListener('install', (event) => {
