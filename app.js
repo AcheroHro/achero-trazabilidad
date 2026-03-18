@@ -287,36 +287,130 @@
         `<label class="fi-chip" data-field="area" data-value="${a}"><input type="checkbox" value="${a}" name="area"><span>${a}</span></label>`
       ).join('');
   
-      // Raíz chips
+      // Soldador chips
       const raices = [...new Set(JUNTAS.map(j => j.raiz))].sort();
       document.getElementById('fc-raiz').innerHTML = raices.map(r =>
         `<label class="fi-chip" data-field="raiz" data-value="${r}"><input type="checkbox" value="${r}" name="raiz"><span>${r}</span></label>`
       ).join('');
   
-      // Chip click toggle
-      document.querySelectorAll('.fi-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          chip.classList.toggle('selected');
-        });
+      // Inicializar cascada
+      updateCascadingFilters();
+
+      // Delegación de eventos para chips (ya que son dinámicos)
+      const filterPanel = document.getElementById('filterPanel');
+      filterPanel.onclick = (e) => {
+        const chip = e.target.closest('.fi-chip');
+        if (chip) {
+          setTimeout(() => {
+            const input = chip.querySelector('input');
+            if (input) {
+              chip.classList.toggle('selected', input.checked);
+              updateCascadingFilters(chip.dataset.field);
+            }
+          }, 0);
+        }
+      };
+
+      // Escuchar cambios en el toggle de SOLDADA?
+      document.querySelectorAll('input[name="soldada_toggle"]').forEach(input => {
+        input.addEventListener('change', () => updateCascadingFilters('soldada'));
       });
+    }
+
+    function updateCascadingFilters(triggerField) {
+      const esc = (s) => String(s).replace(/"/g, '&quot;');
+      
+      const soldadaVal = document.querySelector('input[name="soldada_toggle"]:checked')?.value || '0';
+      const selectedAreas = [...document.querySelectorAll('input[name="area"]:checked')].map(i => i.value);
+      const selectedLines = [...document.querySelectorAll('input[name="linea"]:checked')].map(i => i.value);
+      const selectedSpools = [...document.querySelectorAll('input[name="spool"]:checked')].map(i => i.value);
+      const selectedRaices = [...document.querySelectorAll('input[name="raiz"]:checked')].map(i => i.value);
+
+      const filterBySoldada = (list) => {
+        if (soldadaVal === '0') return list;
+        return list.filter(j => {
+          const tieneFecha = j.fecha && j.fecha !== '—';
+          return soldadaVal === 'SI' ? tieneFecha : !tieneFecha;
+        });
+      };
+
+      // 1. Áreas (siempre filtradas por soldada status)
+      const filteredForAreas = filterBySoldada(JUNTAS);
+      const areas = [...new Set(filteredForAreas.map(j => j.area))].sort();
+      const areaContainer = document.getElementById('fc-area');
+      areaContainer.innerHTML = areas.map(a => {
+        const isSelected = selectedAreas.includes(a);
+        return `<label class="fi-chip ${isSelected ? 'selected' : ''}" data-field="area" data-value="${a}"><input type="checkbox" value="${a}" name="area" ${isSelected ? 'checked' : ''}><span>${a}</span></label>`;
+      }).join('');
+
+      // 2. Líneas (filtradas por soldada + áreas)
+      let filteredForLines = filterBySoldada(JUNTAS);
+      const currentAreas = [...document.querySelectorAll('input[name="area"]:checked')].map(i => i.value);
+      if (currentAreas.length) filteredForLines = filteredForLines.filter(j => currentAreas.includes(j.area));
+      
+      const lines = [...new Set(filteredForLines.map(j => j.linea))].sort();
+      const lineContainer = document.getElementById('fc-linea');
+      lineContainer.innerHTML = lines.map(l => {
+        const isSelected = selectedLines.includes(l);
+        return `<label class="fi-chip ${isSelected ? 'selected' : ''}" data-field="linea" data-value="${esc(l)}"><input type="checkbox" value="${esc(l)}" name="linea" ${isSelected ? 'checked' : ''}><span>${l}</span></label>`;
+      }).join('');
+
+      // 3. Spools (filtradas por soldada + áreas + líneas)
+      let filteredForSpools = filteredForLines;
+      const currentLines = [...document.querySelectorAll('input[name="linea"]:checked')].map(i => i.value);
+      if (currentLines.length) filteredForSpools = filteredForSpools.filter(j => currentLines.includes(j.linea));
+
+      const spools = [...new Set(filteredForSpools.map(j => j.spool))].sort((a,b) => {
+        const na = parseInt(a), nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a).localeCompare(String(b), undefined, {numeric: true});
+      });
+      const spoolContainer = document.getElementById('fc-spool');
+      spoolContainer.innerHTML = spools.map(s => {
+        const isSelected = selectedSpools.includes(s);
+        return `<label class="fi-chip ${isSelected ? 'selected' : ''}" data-field="spool" data-value="${esc(s)}"><input type="checkbox" value="${esc(s)}" name="spool" ${isSelected ? 'checked' : ''}><span>${s}</span></label>`;
+      }).join('');
+
+      // 4. Juntas
+      let filteredForJuntas = filteredForSpools;
+      const currentSpools = [...document.querySelectorAll('input[name="spool"]:checked')].map(i => i.value);
+      if (currentSpools.length) filteredForJuntas = filteredForJuntas.filter(j => currentSpools.includes(j.spool));
+
+      const juntas = [...new Set(filteredForJuntas.map(j => j.junta))].sort((a,b) => {
+        const na = parseInt(a), nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a).localeCompare(String(b), undefined, {numeric: true});
+      });
+      const juntaContainer = document.getElementById('fc-junta');
+      const currentJuntasChecked = [...document.querySelectorAll('input[name="junta"]:checked')].map(i => i.value);
+      juntaContainer.innerHTML = juntas.map(j => {
+        const isSelected = currentJuntasChecked.includes(j);
+        return `<label class="fi-chip ${isSelected ? 'selected' : ''}" data-field="junta" data-value="${esc(j)}"><input type="checkbox" value="${esc(j)}" name="junta" ${isSelected ? 'checked' : ''}><span>${j}</span></label>`;
+      }).join('');
+
+      // 5. Soldador (filtrado por todo lo anterior)
+      const raices = [...new Set(filteredForJuntas.map(j => j.raiz))].sort();
+      const raizContainer = document.getElementById('fc-raiz');
+      raizContainer.innerHTML = raices.map(r => {
+        const isSelected = selectedRaices.includes(r);
+        return `<label class="fi-chip ${isSelected ? 'selected' : ''}" data-field="raiz" data-value="${esc(r)}"><input type="checkbox" value="${esc(r)}" name="raiz" ${isSelected ? 'checked' : ''}><span>${r}</span></label>`;
+      }).join('');
     }
   
     function getFilterValues() {
       const f = {};
-      ['area','raiz','fecha_status'].forEach(name => {
+      ['area','raiz','linea','spool','junta'].forEach(name => {
         const checked = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
         if (checked.length) f[name] = checked;
       });
+
+      const soldadaToggle = document.querySelector('input[name="soldada_toggle"]:checked')?.value;
+      if (soldadaToggle && soldadaToggle !== '0') f.soldada = soldadaToggle;
+
       const dMin = document.getElementById('fv-diam-min')?.value ?? '';
       const dMax = document.getElementById('fv-diam-max')?.value ?? '';
       if (dMin !== '') f.diamMin = parseFloat(dMin);
       if (dMax !== '') f.diamMax = parseFloat(dMax);
-      const spool = document.getElementById('fv-spool').value.trim();
-      const linea = document.getElementById('fv-linea').value.trim();
-      const junta = document.getElementById('fv-junta').value.trim();
-      if (spool) f.spool = spool.toLowerCase();
-      if (linea) f.linea = linea.toLowerCase();
-      if (junta) f.junta = junta.toLowerCase();
       return f;
     }
   
@@ -324,15 +418,15 @@
       return juntas.filter(j => {
         if (f.area   && !f.area.includes(j.area))   return false;
         if (f.raiz   && !f.raiz.includes(j.raiz))   return false;
+        if (f.linea  && !f.linea.includes(j.linea)) return false;
+        if (f.spool  && !f.spool.includes(j.spool)) return false;
+        if (f.junta  && !f.junta.includes(j.junta)) return false;
         if (f.diamMin !== undefined && parseFloat(j.diam) < f.diamMin) return false;
         if (f.diamMax !== undefined && parseFloat(j.diam) > f.diamMax) return false;
-        if (f.spool  && !j.spool.toLowerCase().includes(f.spool)) return false;
-        if (f.linea  && !j.linea.toLowerCase().includes(f.linea)) return false;
-        if (f.junta  && !j.junta.toLowerCase().includes(f.junta)) return false;
-        if (f.fecha_status) {
-          const tieneFecha = j.fecha !== '—';
-          if (f.fecha_status.includes('con_fecha') && !f.fecha_status.includes('sin_fecha') && !tieneFecha) return false;
-          if (f.fecha_status.includes('sin_fecha') && !f.fecha_status.includes('con_fecha') && tieneFecha) return false;
+        if (f.soldada) {
+          const tieneFecha = j.fecha && j.fecha !== '—';
+          if (f.soldada === 'SI' && !tieneFecha) return false;
+          if (f.soldada === 'NO' && tieneFecha) return false;
         }
         return true;
       });
@@ -391,11 +485,17 @@
       activeFilters = {};
       document.querySelectorAll('.fi-chip').forEach(c => c.classList.remove('selected'));
       document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+      
+      const toggle0 = document.getElementById('soldada-0');
+      if (toggle0) toggle0.checked = true;
+
       const dmin = document.getElementById('fv-diam-min'); if (dmin) dmin.value = '';
       const dmax = document.getElementById('fv-diam-max'); if (dmax) dmax.value = '';
-      const sp = document.getElementById('fv-spool'); if (sp) sp.value = '';
-      const ln = document.getElementById('fv-linea'); if (ln) ln.value = '';
       const jt = document.getElementById('fv-junta'); if (jt) jt.value = '';
+      
+      // Resetear cascada
+      updateCascadingFilters();
+
       document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('has-filters');
         btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filtrar`;

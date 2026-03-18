@@ -1146,6 +1146,52 @@
     transition: box-shadow .2s, transform .15s;
   }
   .btn-primary:hover { box-shadow: 0 5px 18px rgba(21,101,192,0.45); transform: translateY(-1px); }
+
+  /* Three-state Toggle Styles */
+  .three-state-container {
+    display: flex;
+    background: #f1f3f4;
+    border-radius: 20px;
+    padding: 3px;
+    position: relative;
+    width: 140px;
+    height: 36px;
+    margin-top: 8px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .three-state-container input { display: none; }
+  .three-state-container label {
+    flex: 1;
+    text-align: center;
+    line-height: 30px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #5f6368;
+    cursor: pointer;
+    z-index: 1;
+    transition: color 0.3s;
+    user-select: none;
+  }
+  .three-state-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: calc(33.33% - 2px);
+    height: 30px;
+    background: #fff;
+    border-radius: 17px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+  }
+  #soldada-si:checked ~ .three-state-slider { transform: translateX(0); background: #4CAF50; }
+  #soldada-0:checked ~ .three-state-slider { transform: translateX(100%); background: #9E9E9E; }
+  #soldada-no:checked ~ .three-state-slider { transform: translateX(200%); background: #F44336; }
+  
+  #soldada-si:checked ~ label[for="soldada-si"],
+  #soldada-0:checked ~ label[for="soldada-0"],
+  #soldada-no:checked ~ label[for="soldada-no"] {
+    color: #fff;
+  }
 </style>
 </head>
 <body>
@@ -1685,6 +1731,24 @@
 
   <div class="filter-scroll">
 
+    <!-- Soldada? -->
+    <div class="fi-group">
+      <div class="fi-label">
+        <div class="filter-dot" style="background:#66BB6A"></div>
+        SOLDADA?
+      </div>
+      <div class="three-state-container">
+        <input type="radio" name="soldada_toggle" id="soldada-si" value="SI">
+        <input type="radio" name="soldada_toggle" id="soldada-0" value="0" checked>
+        <input type="radio" name="soldada_toggle" id="soldada-no" value="NO">
+        <div class="three-state-slider"></div>
+        <label for="soldada-si">SI</label>
+        <label for="soldada-0">0</label>
+        <label for="soldada-no">NO</label>
+      </div>
+    </div>
+
+
     <!-- Área -->
     <div class="fi-group">
       <div class="fi-label">
@@ -1694,53 +1758,48 @@
       <div class="fi-chips" id="fc-area"></div>
     </div>
 
-    <!-- Línea NÂ° -->
+    <!-- Línea -->
     <div class="fi-group">
       <div class="fi-label">
         <div class="filter-dot" style="background:#1565C0"></div>
-        Línea N°
+        Líneas
       </div>
-      <input class="fi-input-text" id="fv-linea" type="text" placeholder="Ej: 300-001">
+      <div class="fi-chips" id="fc-linea">
+        <!-- Generado dinámicamente -->
+      </div>
     </div>
 
     <!-- Spool -->
     <div class="fi-group">
       <div class="fi-label">
         <div class="filter-dot" style="background:#26C6DA"></div>
-        Spool
+        Spools
       </div>
-      <input class="fi-input-text" id="fv-spool" type="text" placeholder="Ej: 1, 2, 3...">
+      <div class="fi-chips" id="fc-spool">
+        <!-- Generado dinámicamente -->
+      </div>
     </div>
 
-    <!-- Junta NÂ° -->
+    <!-- Junta -->
     <div class="fi-group">
       <div class="fi-label">
         <div class="filter-dot" style="background:#01579B"></div>
-        Junta N°
+        Juntas
       </div>
-      <input class="fi-input-text" id="fv-junta" type="text" placeholder="Ej: 1, 2, 3...">
+      <div class="fi-chips" id="fc-junta">
+        <!-- Generado dinámicamente -->
+      </div>
     </div>
 
     <!-- Raíz -->
     <div class="fi-group">
       <div class="fi-label">
         <div class="filter-dot" style="background:#FFB300"></div>
-        Raíz
+        Soldador
       </div>
       <div class="fi-chips" id="fc-raiz"></div>
     </div>
 
-    <!-- Fecha -->
-    <div class="fi-group">
-      <div class="fi-label">
-        <div class="filter-dot" style="background:#66BB6A"></div>
-        Fecha de Soldadura
-      </div>
-      <div class="fi-chips">
-        <label class="fi-chip" data-value="con_fecha"><input type="checkbox" value="con_fecha" name="fecha_status"> <span>Con fecha</span></label>
-        <label class="fi-chip" data-value="sin_fecha"><input type="checkbox" value="sin_fecha" name="fecha_status"> <span>Sin fecha</span></label>
-      </div>
-    </div>
 
   </div><!-- /filter-scroll -->
 
